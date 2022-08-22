@@ -19,15 +19,14 @@ func NewRequest(targetHost string) *Request {
 }
 
 func (r *Request) Handler(op Operation) {
-	//var reqType string, path string
 	method := op.Method
 	path := op.Path
 
 	switch method {
 	case "POST":
-		r.post(path, r.AuthMiddleware(op), r.MakeHandler(path))
+		r.post(path, r.AuthMiddleware(op), r.MakeHandler())
 	case "GET":
-		r.get(path, r.AuthMiddleware(op), r.MakeHandler(path))
+		r.get(path, r.AuthMiddleware(op), r.MakeHandler())
 	}
 
 }
@@ -39,9 +38,10 @@ func (r *Request) NoRoute() {
 	})
 }
 
-func (r *Request) MakeHandler(path string) func(*gin.Context) {
-	endpoint := r.targetHost + path
+func (r *Request) MakeHandler() func(*gin.Context) {
+
 	return func(c *gin.Context) {
+		endpoint := r.targetHost + c.Request.RequestURI
 		c.Redirect(http.StatusMultipleChoices, endpoint)
 	}
 }
@@ -51,6 +51,7 @@ func (r *Request) AuthMiddleware(op Operation) func(*gin.Context) {
 	return func(c *gin.Context) {
 		c.Next()
 		fmt.Printf("allowed roles %v", op.Roles)
+		println()
 	}
 }
 func (r *Request) post(endpoint string, middleware gin.HandlerFunc, handler gin.HandlerFunc) {
