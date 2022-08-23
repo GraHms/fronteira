@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/grahms/fronteira/oidc"
 	"net/http"
+	"net/url"
 )
 
 type Request struct {
@@ -13,7 +14,11 @@ type Request struct {
 
 func NewRequest(targetHost string) *Request {
 	r := gin.Default()
-	req := Request{engine: r, targetHost: targetHost}
+
+	req := Request{
+		engine:     r,
+		targetHost: targetHost,
+	}
 	req.NoRoute()
 	return &req
 }
@@ -38,7 +43,7 @@ func (r *Request) NoRoute() {
 	})
 }
 
-func (r *Request) MakeHandler() func(*gin.Context) {
+func (r *Request) MakeHandler() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		endpoint := r.targetHost + c.Request.RequestURI
@@ -46,14 +51,30 @@ func (r *Request) MakeHandler() func(*gin.Context) {
 	}
 }
 
-func (r *Request) AuthMiddleware(op Operation) func(*gin.Context) {
+func (r *Request) AuthMiddleware(op Operation) gin.HandlerFunc {
 
-	return func(c *gin.Context) {
-		c.Next()
-		fmt.Printf("allowed roles %v", op.Roles)
-		println()
+	oidcParams := oidc.InitParams{
+		Router:       r.engine,
+		ClientId:     "xx-xxx-xxx",
+		ClientSecret: "xx-xxx-xxx",
+		Issuer:       url.URL{Host: "https://accounts.google.com/"}, //add '.well-known/openid-configuration' to see it's a good link
+		ClientUrl:    url.URL{Host: r.targetHost},                   //your website's url
+		Scopes:       op.Scopes,
+		ErrorHandler: func(c *gin.Context) {
+			//gin_oidc pushes a new error before any "ErrorHandler" invocation
+			message := c.Errors.Last().Error()
+			//redirect to ErrorEndpoint with error message
+			//redirectToErrorPage(c, "http://example2.domain/error", message)
+			//when "ErrorHandler" ends "c.Abort()" is invoked - no further handlers will be invoked
+			c.JSON(500, message)
+			c.Abort()
+		},
+		PostLogoutUrl: url.URL{Host: r.targetHost},
 	}
+
+	return oidc.Init(oidcParams)
 }
+
 func (r *Request) post(endpoint string, middleware gin.HandlerFunc, handler gin.HandlerFunc) {
 
 	r.engine.POST(endpoint, middleware, handler)

@@ -29,7 +29,7 @@ type Spec struct {
 type Operation struct {
 	Method string   `yaml:"method"`
 	Path   string   `yaml:"path"`
-	Roles  []string `yaml:"roles"`
+	Scopes []string `yaml:"scopes"`
 }
 
 func NewAuthPolicy(path string) *AuthorizationPolicy {
